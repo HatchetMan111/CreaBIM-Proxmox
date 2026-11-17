@@ -11,10 +11,12 @@ Ohne diese Variable werden die Tests übersprungen – die schnelle Suite
 
 from __future__ import annotations
 
+import io
 import os
 
 import pytest
 from conftest import new_project, start_job
+from test_sh3d import HOME_XML, sh3d_bytes  # noqa: F401 – Fixture + XML
 
 REAL_CLI = os.environ.get("CREABIM_TEST_CLI", "").strip()
 
@@ -113,3 +115,52 @@ def test_real_error_chain(real_client):
     # Die Strukturprüfung fängt das vor dem CLI-Aufruf ab.
     assert response.status_code == 400
     assert "Quatsch" in response.json()["detail"]
+
+
+# ── Sweet-Home-3D-Import (echte CLI baut die konvertierte Spec) ────────────
+def test_real_sh3d_import_end_to_end(real_client, sh3d_bytes):
+    """SH3D → Konverter → `creabim-cli build` → Grundriss-SVG."""
+    from test_sh3d import HOME_XML
+
+    response = real_client.post(
+        "/api/projects/import",
+        files={"file": ("konzept.sh3d", io.BytesIO(sh3d_bytes),
+                        "application/octet-stream")})
+    assert response.status_code == 201, response.text
+    project = response.json()["project"]
+    assert project["kind"] == "sh3d"
+    assert any("Flächen: 2" in line
+               for line in project.get("import_report", []))
+
+    detail = real_client.get(f"/api/projects/{project['id']}").json()
+    assert detail["structure"]["levels"] == ["niveau-0", "niveau-1"]
+    assert detail["structure"]["stats"]["IfcSlab"] == 2
+    assert detail["structure"]["stats"]["IfcWall"] == 2
+    assert detail["structure"]["stats"]["IfcDoor"] == 1
+
+    plan = next(v["name"] for v in detail["structure"]["views"]
+                if v["kind"] == "plan" and v["level"] == "niveau-0")
+    job = start_job(real_client, project["id"], "view", {"name": plan})
+    assert job["status"] == "done", job.get("report")
+    art = real_client.get(f"/api/jobs/{job['id']}/artifact?inline=1")
+    assert art.status_code == 200
+    assert art.content.startswith(b"<svg")
+
+
+def test_real_sh3d_without_walls_reports_skip(real_client):
+    """Dieses SH3D-Konzept hat keine Wände – Türen müssen gemeldet, nicht still
+    weggeworfen werden."""
+    import zipfile
+
+    # Alle <wall-Zeilen raus – das Konzept ohne Wände nachbauen
+    xml = "\n".join(l for l in HOME_XML.splitlines() if not l.lstrip().startswith("<wall"))
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("Home.xml", xml)
+    response = real_client.post(
+        "/api/projects/import",
+        files={"file": ("ohne-waende.sh3d", buf, "application/octet-stream")})
+    assert response.status_code == 201, response.text
+    report = response.json()["project"].get("import_report", [])
+    assert any("keine Wände" in line for line in report)
+    assert any("Türen/Fenster übergangen" in line for line in report)

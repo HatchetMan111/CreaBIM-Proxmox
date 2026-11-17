@@ -105,7 +105,7 @@ existierenden Modell, sie ist kein Zeichenprogramm:
 
 | Bereich | Funktionen |
 |---|---|
-| **Projekte** | Beispielmodelle (6 Stück), Import von `.ifc`, `.ifcx`, `.creabim`, `.creabim.json`, Umbenennen, Modell-Download |
+| **Projekte** | Beispielmodelle (6 Stück), Import von `.ifc`, `.ifcx`, `.creabim`, `.creabim.json`, **`.sh3d` (Sweet Home 3D)**, Umbenennen, Modell-Download |
 | **Zeichnungen** | Grundrisse, Schnitte, Ansichten und einzelne Pläne als Vektor-SVG – direkt im Browser |
 | **Export** | Alle Pläne als PDF, Excel-Schedules, CSV-Listen, IFC4, IFC5 (IFCX), glTF/GLB für Blender, FreeCAD |
 | **Auswertung** | Element-Statistik nach IFC-Klasse, Modellprüfung (Türen/Wandanschlüsse), Beschriftungs-Konflikte, Räume aus Notizen |
@@ -138,6 +138,37 @@ Wichtige Hinweise:
   TLS. Wer die GUI von außerhalb des LANs nutzt, sollte einen Reverse-Proxy
   mit TLS davorsetzen.
 
+## Sweet-Home-3D-Pläne importieren
+
+Die Weboberfläche nimmt direkt `.sh3d`-Dateien an (Dialog „Importieren"): der
+Server liest das `Home.xml` aus dem Archiv und wandelt es in ein CreaBIM-Modell um.
+
+| SH3D | CreaBIM | Anmerkung |
+|---|---|---|
+| Ebenen (levels) | `levels` | Höhen in Metern umgerechnet |
+| Wände | `walls` (Mittellinie) | gekrümmte Wände werden übergangen |
+| Türen/Fenster | `openings` | nur, wenn eine tragende Wand gefunden wird |
+| Räume | `slabs` (Bodenflächen) | SH3D-Räume sind hier Flächen-Polygone |
+| Möbel + Lichter | `objects` | über Katalog-Map (`sofa-3`, `chair`, `wc`, `shower`, …) |
+| Bemaßungen | – | nicht im JSON-Format |
+
+Der Import-Report (in den Projekt-Details, Feld `import_report`) zählt exakt auf,
+was übernommen und was übergangen wurde – nichts wird still weggeworfen.
+**Wichtig:** Pläne, die nur aus Flächen bestehen (keine Wände gezeichnet),
+liefern als Bodenplatten ohne Türen/Fenster.
+
+Auch ohne Server nutzbar (standalone):
+
+```bash
+python3 app/backend/sh3d.py "plan.sh3d" plan.creabim.json
+creabim-cli build --check plan.creabim.json     # validieren
+creabim-cli build plan.creabim.json modell.creabim.json
+```
+
+Die Drehrichtung der Möbel ist zwischen Sweet Home 3D und CreaBIM nicht
+dokumentiert; falls Möbel „falsch herum" stehen, lässt sich das in
+`app/backend/sh3d.py` oben über `ANGLE_SIGN` / `ROTATION_OFFSET_DEG` umstellen.
+
 ## Projektstruktur
 
 ```
@@ -148,6 +179,7 @@ CreaBIM-Proxmox/
 │   │   ├── main.py                 # FastAPI: API + SPA
 │   │   ├── creabim_cli.py          # Wrapper um creabim-cli (Aktionen, Fehlerketten)
 │   │   ├── library.py              # Projekte, Import, Struktur-Cache
+│   │   ├── sh3d.py                 # Sweet-Home-3D-Konverter (auch standalone)
 │   │   ├── jobs.py                 # Hintergrund-Jobs + Artefakte
 │   │   └── static/                 # gebautes React/Vite-Frontend
 │   └── frontend/                   # React/Vite-Quelle
@@ -213,7 +245,7 @@ GET  /api/health                     Status + CLI-Pfad
 GET  /api/info                       Aktionen, Beispielmodelle, Version
 GET  /api/projects                   Projektliste
 POST /api/projects                   Projekt aus Beispiel anlegen
-POST /api/projects/import            Datei hochladen (.ifc/.ifcx/.creabim/.json)
+POST /api/projects/import            Datei hochladen (.ifc/.ifcx/.creabim/.json/.sh3d)
 GET  /api/projects/{id}              Projekt + Struktur
 GET  /api/projects/{id}/structure    Geschosse, Ansichten, Pläne, Statistik
 GET  /api/projects/{id}/model        Modelldatei herunterladen

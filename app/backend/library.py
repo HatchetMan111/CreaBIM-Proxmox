@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import sh3d
 from creabim_cli import (
     ACTION_BY_KEY, CliError, CliRunner, Result, error_message,
     parse_stats, slugify,
@@ -187,7 +188,11 @@ class Library:
 
     def import_model(self, filename: str, data: bytes,
                      name: str | None = None) -> dict[str, Any]:
-        """Eine hochgeladene Datei importieren (.creabim/.creabim.json/.ifc/.ifcx/.json)."""
+        """Eine hochgeladene Datei importieren.
+
+        Erlaubt: .creabim, .creabim.json, .ifc, .ifcx, .json (Build-Spec) und
+        .sh3d (Sweet Home 3D – wird vor dem Build umgewandelt).
+        """
         safe = Path(filename or "modell").name
         lower = safe.lower()
         if lower.endswith(".ifc") or lower.endswith(".ifcx"):
@@ -196,23 +201,39 @@ class Library:
             kind, suffix = "creabim-json", ".creabim.json"
         elif lower.endswith(".creabim"):
             kind, suffix = "creabim", ".creabim"
+        elif lower.endswith(".sh3d"):
+            kind, suffix = "sh3d", ".creabim.json"
         elif lower.endswith(".json"):
             # Eine JSON-Spezifikation wird über `creabim build` zum Modell.
             kind, suffix = "spec", ".creabim.json"
         else:
             raise ValueError(
-                "Dateityp nicht unterstützt. Erlaubt: .creabim, .creabim.json, .ifc, .ifcx, .json")
+                "Dateityp nicht unterstützt. Erlaubt: .creabim, .creabim.json, "
+                ".ifc, .ifcx, .json, .sh3d")
 
         pid = self._new_pid(name or Path(safe).stem)
         target = self.library_dir / pid
         target.mkdir(parents=True)
+        import_report: list[str] = []
         try:
             source = target / ("import" + Path(safe).suffix)
             source.write_bytes(data)
             model = target / ("model" + suffix)
+            spec_path = target / "import-spec.json"
 
             if kind == "ifc":
                 res = self.runner.run(["import-ifc", str(source), str(model)])
+            elif kind == "sh3d":
+                # Sweet Home 3D: erst in eine CreaBIM-Spec umwandeln, dann bauen.
+                try:
+                    converted = sh3d.convert_sh3d(data, name=name)
+                except sh3d.Sh3dError as exc:
+                    raise CliError(f"SH3D-Import fehlgeschlagen: {exc}") from exc
+                spec_path.write_text(
+                    json.dumps(converted["spec"], indent=2, ensure_ascii=False),
+                    encoding="utf-8")
+                res = self.runner.run(["build", str(spec_path), str(model)])
+                import_report = sh3d.report_lines(converted["report"])
             elif kind == "spec":
                 res = self.runner.run(["build", str(source), str(model)])
             else:
@@ -240,6 +261,8 @@ class Library:
             "size": model.stat().st_size,
             "structure": None,
         }
+        if import_report:
+            meta["import_report"] = import_report
         self._write_meta(meta)
         self._warm_structure(pid)
         return self.get(pid)
