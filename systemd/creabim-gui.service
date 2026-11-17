@@ -1,0 +1,19 @@
+[Unit]
+Description=CreaBIM GUI – CreaBIM im Browser (noVNC)
+Documentation=https://github.com/HatchetMan111/CreaBIM-Proxmox
+After=network-online.target creabim-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=creabim
+Group=creabim
+Environment=NOVNC_DIR=/usr/share/novnc
+Environment=GUI_PORT=8031
+ExecStart=/opt/creabim/bin/creabim-gui.sh
+Restart=always
+RestartSec=8
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

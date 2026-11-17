@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Attrappe für `curl` auf dem Proxmox-Host.
+#
+#  * GitHub-API  → liefert ein Release-JSON mit Linux-x64-Asset + SHA256SUMS
+#  * SHA256SUMS  → schreibt eine passende Checksummen-Datei
+#  * /api/health → gibt den HTTP-Code aus (wie curl -w '%{http_code}')
+set -uo pipefail
+
+STATE="${MOCK_STATE:?MOCK_STATE fehlt}"
+echo "curl $*" >>"$STATE/curl.log"
+
+args=("$@")
+url="${args[${#args[@]}-1]}"
+out=""
+for ((i = 0; i < ${#args[@]}; i++)); do
+    if [[ "${args[$i]}" == "-o" ]]; then
+        out="${args[$((i + 1))]}"
+    fi
+done
+
+case "$url" in
+    *api.github.com*)
+        cat <<'JSON'
+{
+  "tag_name": "v1.1.1",
+  "assets": [
+    {
+      "browser_download_url": "https://github.com/chopinregis/CreaBIM/releases/download/v1.1.1/CreaBIM-1.1.1-2026-11-11-linux-x64.tar.gz"
+    },
+    {
+      "browser_download_url": "https://github.com/chopinregis/CreaBIM/releases/download/v1.1.1/SHA256SUMS.txt"
+    }
+  ]
+}
+JSON
+        ;;
+    *SHA256SUMS.txt*)
+        if [[ -n "$out" ]]; then
+            printf '%s  %s\n' \
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" \
+                "CreaBIM-1.1.1-2026-11-11-linux-x64.tar.gz" >"$out"
+        else
+            printf '%s  %s\n' \
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" \
+                "CreaBIM-1.1.1-2026-11-11-linux-x64.tar.gz"
+        fi
+        ;;
+    *"/api/health"*)
+        # curl -w '%{http_code}' – ohne Zeilenumbruch ausgeben
+        printf '200'
+        ;;
+    *)
+        # Herunterladbare Datei (SSH-Key o. Ä.) – eine leere Datei genügt
+        [[ -n "$out" ]] && : >"$out"
+        ;;
+esac

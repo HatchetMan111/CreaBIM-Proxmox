@@ -1,0 +1,22 @@
+[Unit]
+Description=CreaBIM Server – lokale BIM-Web-App (FastAPI + creabim-cli)
+Documentation=https://github.com/HatchetMan111/CreaBIM-Proxmox
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=creabim
+Group=creabim
+WorkingDirectory=/opt/creabim/src/backend
+Environment=CREABIM_DATA_DIR=/opt/creabim/data
+Environment=CREABIM_CLI=/opt/creabim/bin/creabim-cli
+Environment=CREABIM_VERSION=latest
+ExecStart=/opt/creabim/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8030
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+# Node (nur für den Frontend-Build nötig)
+web/node_modules/
+web/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Werkzeuge / Redaktions-Reste
+.DS_Store
+*.swp

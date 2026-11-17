@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# Attrappe für `pct` – zeichnet alle Aufrufe auf und spielt einen Container.
+set -uo pipefail
+
+STATE="${MOCK_STATE:?MOCK_STATE fehlt}"
+LOG="$STATE/pct.log"
+mkdir -p "$STATE"
+echo "pct $*" >>"$LOG"
+
+cmd="${1:-}"
+[[ $# -gt 0 ]] && shift || true
+
+case "$cmd" in
+    list)
+        echo "VMID NAME STATUS MEM BOOTDISK PID"
+        echo "199 belegt running 1024 rootfs/8 999"
+        if [[ -f "$STATE/ct-created" ]]; then
+            id=$(cat "$STATE/ct-created")
+            echo "$id creabim running 2048 rootfs/6 1234"
+        fi
+        ;;
+    status)
+        if [[ -f "$STATE/ct-created" ]]; then
+            echo "status: running"
+        else
+            echo "status: stopped"
+            exit 1
+        fi
+        ;;
+    create)
+        id="${1:-}"
+        shift || true
+        echo "$id" >"$STATE/ct-created"
+        printf '%s\n' "$*" >"$STATE/create.args"
+        ;;
+    push)
+        # pct push <id> <quelle> <ziel>
+        if [[ -f "${2:-}" ]]; then
+            cp "$2" "$STATE/pushed-inner.sh"
+        fi
+        ;;
+    exec)
+        ct_id="${1:-}"
+        shift || true
+        [[ "${1:-}" == "--" ]] && shift || true
+        echo "exec $ct_id: $*" >>"$LOG"
+
+        # env VAR=WERT … bash -c '…'
+        if [[ "${1:-}" == "env" ]]; then
+            shift || true
+            while [[ "${1:-}" == *=* ]]; do
+                echo "$1" >>"$STATE/exec.env"
+                shift || true
+            done
+            exit 0
+        fi
+
+        case "${1:-}" in
+            hostname)
+                [[ "${2:-}" == "-I" ]] && echo "10.120.1.77 192.168.1.77"
+                ;;
+            getent)
+                echo "140.82.121.4 github.com"
+                ;;
+            systemctl)
+                if [[ "${2:-}" == "is-active" ]]; then
+                    unit="${*: -1}"
+                    if [[ "$unit" == "creabim-gui" ]]; then
+                        [[ -f "$STATE/gui-installed" ]] || exit 1
+                    fi
+                    exit 0
+                fi
+                if [[ "${2:-}" == "show" ]]; then
+                    echo 'Environment=CREABIM_DATA_DIR=/opt/creabim/data CREABIM_CLI=/opt/creabim/bin/creabim-cli CREABIM_VERSION=1.1.1'
+                fi
+                ;;
+            curl)
+                case "$*" in
+                    *-w*) echo -n "200" ;;
+                esac
+                ;;
+            test)
+                [[ "${1:-}" == "-f" ]] || exit 0
+                # pveam-artige Pfade sind im Container – wir tun, als wären sie da.
+                exit 0
+                ;;
+            sh)
+                exit 0
+                ;;
+            *)
+                exit 0
+                ;;
+        esac
+        ;;
+    stop)
+        [[ "${1:-}" == "creabim" ]] && rm -f "$STATE/ct-created" 2>/dev/null || true
+        ;;
+    destroy)
+        rm -f "$STATE/ct-created" 2>/dev/null || true
+        ;;
+    start)
+        exit 0
+        ;;
+    *)
+        echo "mock-pct: unbekannter Befehl '$cmd'" >&2
+        exit 0
+        ;;
+esac
