@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import Dialog from './Dialog.jsx';
 import { formatBytes } from '../format.js';
 
-const ACCEPT = '.creabim,.creabim.json,.ifc,.ifcx,.json,.sh3d';
+const ACCEPT = '.creabim,.creabim.json,.ifc,.ifcx,.json,.sh3d,.blend,.FCStd,.fcstd';
 
 function FormError({ message }) {
   if (!message) return null;
@@ -156,7 +156,7 @@ export function ImportDialog({ busy, error, onClose, onImport }) {
           <p>
             <strong>Datei hier ablegen</strong> oder klicken
           </p>
-          <p className="small">Erlaubt: .creabim, .creabim.json, .ifc, .ifcx, .json, .sh3d (Sweet Home 3D)</p>
+          <p className="small">Erlaubt: .creabim, .creabim.json, .ifc, .ifcx, .json, .sh3d (Sweet Home 3D), .blend (Blender), .FCStd (FreeCAD)</p>
           <input
             ref={inputRef}
             type="file"

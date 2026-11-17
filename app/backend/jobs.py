@@ -137,7 +137,11 @@ class JobManager:
         return path
 
     def shutdown(self) -> None:
-        self._pool.shutdown(wait=False, cancel_futures=True)
+        # Warten auf LAUFENDE Jobs: cancel_futures nimmt die Warteschlange raus,
+        # aber ein bereits laufender CLI-Aufruf (PDF-Export ~3 s) darf nicht als
+        # zurückgelassener Thread überleben – sonst melden Cleanup-Prüfungen
+        # (anyio verify_cleanup) bei Test-Läufen zufällig lingering threads.
+        self._pool.shutdown(wait=True, cancel_futures=True)
 
     # ── intern ─────────────────────────────────────────────────────────────
     def _run(self, job: Job, action: Action) -> None:

@@ -164,3 +164,36 @@ def test_real_sh3d_without_walls_reports_skip(real_client):
     report = response.json()["project"].get("import_report", [])
     assert any("keine Wände" in line for line in report)
     assert any("Türen/Fenster übergangen" in line for line in report)
+
+def test_real_fcstd_import_via_link(real_client, tmp_path):
+    """FreeCAD-Datei → `creabim link` in ein leeres Modell → Objekte im Projekt."""
+    import json
+    import subprocess
+
+    cli = os.environ["CREABIM_TEST_CLI"]
+    model = tmp_path / "starter.creabim.json"
+    subprocess.run([cli, "sample", str(model)], check=True, capture_output=True)
+    fcstd = tmp_path / "haus.FCStd"
+    subprocess.run([cli, "fcstd", str(model), str(fcstd)], check=True,
+                   capture_output=True)
+    assert fcstd.exists() and fcstd.stat().st_size > 100_000
+
+    response = real_client.post(
+        "/api/projects/import",
+        files={"file": ("haus.FCStd", open(fcstd, "rb"), "application/octet-stream")},
+        data={"name": "FreeCAD Import"})
+    assert response.status_code == 201, response.text
+    project = response.json()["project"]
+    assert project["kind"] == "link"
+    assert any("added" in line for line in project.get("import_report", []))
+
+    detail = real_client.get(f"/api/projects/{project['id']}").json()
+    stats = detail["structure"]["stats"]
+    # Aus dem FreeCAD-Export kommen echte Elemente, keine leere Hülle:
+    assert stats.get("IfcFurniture", 0) > 50
+    assert stats.get("IfcWall", 0) > 10
+
+    # Und daraus lässt sich ein Grundriss zeichnen:
+    plan = next(v["name"] for v in detail["structure"]["views"] if v["kind"] == "plan")
+    job = start_job(real_client, project["id"], "view", {"name": plan})
+    assert job["status"] == "done", job.get("report")

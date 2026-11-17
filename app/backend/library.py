@@ -61,6 +61,23 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
 
+def _link_report_lines(stdout: str, max_notes: int = 6) -> list[str]:
+    """Die stdout von `creabim link` in Report-Zeilen fassen.
+
+    Die erste Zeile enthält die Zahl der übernommenen Objekte; danach kommen
+    Hinweise (etwa Türen ohne tragende Wand) – gekürzt, aber gezählt.
+    """
+    lines = [l.strip() for l in (stdout or "").strip().splitlines() if l.strip()]
+    if not lines:
+        return ["`creabim link` hat keine Zusammenfassung geliefert."]
+    report = [lines[0]]
+    notes = [l for l in lines[1:] if l]
+    if notes:
+        mehr = f" … und {len(notes) - max_notes} weitere" if len(notes) > max_notes else ""
+        report.append(f"{len(notes)} Hinweise: " + "; ".join(notes[:max_notes]) + mehr)
+    return report
+
+
 def _atomic_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".tmp-")
@@ -190,8 +207,8 @@ class Library:
                      name: str | None = None) -> dict[str, Any]:
         """Eine hochgeladene Datei importieren.
 
-        Erlaubt: .creabim, .creabim.json, .ifc, .ifcx, .json (Build-Spec) und
-        .sh3d (Sweet Home 3D – wird vor dem Build umgewandelt).
+        Erlaubt: .creabim, .creabim.json, .ifc, .ifcx, .json (Build-Spec),
+        .sh3d (Sweet Home 3D) und .blend/.FCStd (Blender/FreeCAD via `link`).
         """
         safe = Path(filename or "modell").name
         lower = safe.lower()
@@ -203,18 +220,28 @@ class Library:
             kind, suffix = "creabim", ".creabim"
         elif lower.endswith(".sh3d"):
             kind, suffix = "sh3d", ".creabim.json"
+        elif lower.endswith(".blend") or lower.endswith(".fcstd"):
+            kind, suffix = "link", ".creabim.json"
+        elif lower.endswith(".gltf") or lower.endswith(".glb"):
+            raise ValueError(
+                "glTF (.gltf/.glb) kann noch nicht als Modell importiert werden – "
+                "das CreaBIM-JSON-Format kennt eigene Katalogobjekte noch nicht "
+                "(Upstream: 'Not yet in the format'). Alternativen: aus Blender "
+                "als .blend oder aus FreeCAD als .FCStd exportieren und hier "
+                "hochladen.")
         elif lower.endswith(".json"):
             # Eine JSON-Spezifikation wird über `creabim build` zum Modell.
             kind, suffix = "spec", ".creabim.json"
         else:
             raise ValueError(
                 "Dateityp nicht unterstützt. Erlaubt: .creabim, .creabim.json, "
-                ".ifc, .ifcx, .json, .sh3d")
+                ".ifc, .ifcx, .json, .sh3d, .blend, .FCStd")
 
         pid = self._new_pid(name or Path(safe).stem)
         target = self.library_dir / pid
         target.mkdir(parents=True)
         import_report: list[str] = []
+        empty = target / "import-leer.creabim.json"
         try:
             source = target / ("import" + Path(safe).suffix)
             source.write_bytes(data)
@@ -234,6 +261,27 @@ class Library:
                     encoding="utf-8")
                 res = self.runner.run(["build", str(spec_path), str(model)])
                 import_report = sh3d.report_lines(converted["report"])
+            elif kind == "link":
+                # Blender/FreeCAD: leeres Modell bauen, dann die Datei einlinken.
+                spec_path.write_text(
+                    json.dumps(
+                        {"version": 1,
+                         "levels": [{"id": "Import", "elevation": 0, "height": 3.0}],
+                         "views": [
+                             {"id": "Plan", "kind": "plan", "level": "Import",
+                              "scale": 100},
+                             {"id": "3D-Ansicht", "kind": "3d", "azimuth": 35,
+                              "altitude": 30},
+                         ]},
+                        indent=2),
+                    encoding="utf-8")
+                first = self.runner.run(["build", str(spec_path), str(empty)])
+                if not first.ok:
+                    raise CliError(error_message(first, "Leeres Modell fehlgeschlagen"),
+                                   exit_code=first.returncode, stdout=first.stdout,
+                                   stderr=first.stderr, argv=first.argv)
+                res = self.runner.run(["link", str(empty), str(source), str(model)])
+                import_report = _link_report_lines(res.stdout)
             elif kind == "spec":
                 res = self.runner.run(["build", str(source), str(model)])
             else:
@@ -241,6 +289,7 @@ class Library:
                 shutil.move(str(source), str(model))
                 res = Result(0, "", "", [])
             source.unlink(missing_ok=True)
+            empty.unlink(missing_ok=True)
 
             if not res.ok or not model.exists():
                 raise CliError(

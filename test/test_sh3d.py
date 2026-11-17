@@ -207,3 +207,25 @@ def test_import_broken_sh3d_is_rejected(client):
 def test_sample_still_works(client):
     pid = new_project(client)
     assert client.get(f"/api/projects/{pid}").status_code == 200
+
+# ── Blender / FreeCAD (.blend, .FCStd) ─────────────────────────────────────
+def test_fcstd_and_blend_are_accepted(client, sh3d_bytes):
+    """Plumbing mit der Stub-CLI: link wird mit leeren Modell + Quelle gerufen."""
+    import io as _io
+
+    for fname in ("haus.FCStd", "haus.fcstd", "haus.blend"):
+        response = client.post("/api/projects/import",
+                               files={"file": (fname, _io.BytesIO(b"blend-data"),
+                                               "application/octet-stream")})
+        assert response.status_code == 201, (fname, response.text)
+        project = response.json()["project"]
+        assert project["kind"] == "link", fname
+
+
+def test_gltf_glb_get_clear_error(client):
+    response = client.post("/api/projects/import",
+                           files={"file": ("haus.glb", io.BytesIO(b"glb-data"),
+                                           "application/octet-stream")})
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert "glTF" in detail and ".blend" in detail

@@ -161,6 +161,15 @@ def main(argv: list[str]) -> int:
         write_model(Path(args[1]))
         return 0
 
+    if cmd == "link":
+        # `creabim link <model> <file> <out-model>`: Objekte aus Blender/FreeCAD
+        # in ein Modell bringen – Stub kopiert das Modell und meldet Erfolg.
+        if len(args) < 3:
+            return fail("usage: link <model> <file> <out-model>")
+        shutil.copyfile(args[0], args[2])
+        print("5 added. Teststück: Put it in a wall first: no wall runs through it.")
+        return 0
+
     if cmd == "build":
         if len(args) < 2:
             return fail("usage: build <spec.json> <out>")

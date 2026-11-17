@@ -105,7 +105,7 @@ existierenden Modell, sie ist kein Zeichenprogramm:
 
 | Bereich | Funktionen |
 |---|---|
-| **Projekte** | Beispielmodelle (6 Stück), Import von `.ifc`, `.ifcx`, `.creabim`, `.creabim.json`, **`.sh3d` (Sweet Home 3D)**, Umbenennen, Modell-Download |
+| **Projekte** | Beispielmodelle (6 Stück), Import von `.ifc`, `.ifcx`, `.creabim`, `.creabim.json`, **`.sh3d`** (Sweet Home 3D), **`.blend`** (Blender), **`.FCStd`** (FreeCAD), Umbenennen, Modell-Download |
 | **Zeichnungen** | Grundrisse, Schnitte, Ansichten und einzelne Pläne als Vektor-SVG – direkt im Browser |
 | **Export** | Alle Pläne als PDF, Excel-Schedules, CSV-Listen, IFC4, IFC5 (IFCX), glTF/GLB für Blender, FreeCAD |
 | **Auswertung** | Element-Statistik nach IFC-Klasse, Modellprüfung (Türen/Wandanschlüsse), Beschriftungs-Konflikte, Räume aus Notizen |
@@ -138,7 +138,7 @@ Wichtige Hinweise:
   TLS. Wer die GUI von außerhalb des LANs nutzt, sollte einen Reverse-Proxy
   mit TLS davorsetzen.
 
-## Sweet-Home-3D-Pläne importieren
+## Fremdformate importieren (Sweet Home 3D, Blender, FreeCAD)
 
 Die Weboberfläche nimmt direkt `.sh3d`-Dateien an (Dialog „Importieren"): der
 Server liest das `Home.xml` aus dem Archiv und wandelt es in ein CreaBIM-Modell um.
@@ -156,6 +156,13 @@ Der Import-Report (in den Projekt-Details, Feld `import_report`) zählt exakt au
 was übernommen und was übergangen wurde – nichts wird still weggeworfen.
 **Wichtig:** Pläne, die nur aus Flächen bestehen (keine Wände gezeichnet),
 liefern als Bodenplatten ohne Türen/Fenster.
+
+**Blender (.blend) und FreeCAD (.FCStd)** werden über `creabim-cli link` in ein
+frisches Modell übernommen (Level „Import" mit Plan- und 3D-Ansicht, danach die
+eingelinkten Objekte). Der Report zählt die übernommenen Objekte und meldet
+Türen/Fenster ohne tragende Wand als Hinweis. glTF (`.gltf`/`.glb`) ist als
+Modell-Import noch nicht möglich (Upstream „Not yet in the format") – die API
+liefert dafür eine klare Meldung mit den Alternativen.
 
 Auch ohne Server nutzbar (standalone):
 
