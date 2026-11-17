@@ -2193,3 +2193,14 @@ select.input:disabled {
     scroll-behavior: auto !important;
   }
 }
+/* „In CreaBIM öffnen“-Dialog: nummerierte Schritte */
+.steps {
+  margin: 0;
+  padding-left: 1.4rem;
+  display: grid;
+  gap: 0.9rem;
+}
+.steps li::marker {
+  color: var(--sage, #4F6B4C);
+  font-weight: 600;
+}

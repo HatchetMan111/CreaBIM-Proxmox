@@ -7,6 +7,7 @@ import Viewer from './components/Viewer.jsx';
 import Toasts from './components/Toasts.jsx';
 import useJobs from './useJobs.js';
 import {
+  CreabimOpenDialog,
   DeleteDialog,
   ImportDialog,
   NewProjectDialog,
@@ -394,6 +395,7 @@ export default function App() {
               onTab={setTab}
               onRename={handleRename}
               onRequestRename={() => openDialog('rename')}
+              onRequestCreabim={() => openDialog('creabim')}
               onRequestDelete={() => openDialog('delete')}
               onStartJob={startJob}
               onRender={renderDrawing}
@@ -437,6 +439,13 @@ export default function App() {
           error={dialogError}
           onClose={closeDialog}
           onRename={handleRename}
+        />
+      )}
+
+      {dialog?.type === 'creabim' && current && (
+        <CreabimOpenDialog
+          project={current.project}
+          onClose={closeDialog}
         />
       )}
 

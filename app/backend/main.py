@@ -21,7 +21,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from creabim_cli import ACTION_BY_KEY, ACTIONS, CliError, CliRunner, find_cli
+from creabim_cli import ACTION_BY_KEY, ACTIONS, CliError, CliRunner, find_cli, slugify
 from jobs import JobManager
 from library import SAMPLES, Library, ProjectNotFound
 
@@ -220,7 +220,11 @@ def download_model(pid: str) -> FileResponse:
     path = lib.model_path(meta)
     if not path.exists():
         raise HTTPException(404, "Modelldatei fehlt.")
-    return FileResponse(path, filename=path.name, media_type="application/octet-stream")
+    # Sprechender Name beim Download: der Projektname, nicht "model.creabim.json"
+    suffix = "".join(path.suffixes) or ".creabim.json"      # .creabim.json vollständig
+    download_name = f"{slugify(meta.get('name') or 'modell')}{suffix}"
+    return FileResponse(path, filename=download_name,
+                        media_type="application/octet-stream")
 
 
 # ── API: Jobs ──────────────────────────────────────────────────────────────

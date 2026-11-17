@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import Dialog from './Dialog.jsx';
 import { formatBytes } from '../format.js';
+import * as api from '../api.js';
 
 const ACCEPT = '.creabim,.creabim.json,.ifc,.ifcx,.json,.sh3d,.blend,.FCStd,.fcstd';
 
@@ -271,6 +272,47 @@ export function DeleteDialog({ projectName, busy, error, onClose, onDelete }) {
         Job-Artefakten vom Server gelöscht. Das lässt sich nicht rückgängig machen.
       </p>
       <FormError message={error} />
+    </Dialog>
+  );
+}
+export function CreabimOpenDialog({ project, onClose }) {
+  return (
+    <Dialog
+      title="In CreaBIM öffnen"
+      description="CreaBIM ist die Desktop-App zum Zeichnen. Sie öffnet keine Server-Datei direkt – der Weg führt über die Modelldatei."
+      onClose={onClose}
+      footer={
+        <button type="button" className="btn btn-ghost" onClick={onClose}>
+          Schließen
+        </button>
+      }
+    >
+      <ol className="steps">
+        <li>
+          <a
+            className="btn btn-primary btn-sm"
+            href={`${api.modelUrl(project.id)}`}
+            download
+          >
+            Modelldatei herunterladen
+          </a>
+          <p className="small">
+            Landet im Download-Ordner, benannt nach dem Projekt
+            (<code>.creabim.json</code> bzw. <code>.creabim</code>).
+          </p>
+        </li>
+        <li>CreaBIM starten – im Anwendungsmenü oder per Desktop-Install-Befehl (README, gelbe Box ganz oben).</li>
+        <li>
+          In CreaBIM <strong>Datei → Öffnen</strong> (Strg+O) und die heruntergeladene
+          Datei wählen. Alles, was du dort änderst, speichert CreaBim in die Datei –
+          zum Zurückspielen wieder hier importieren.
+        </li>
+      </ol>
+      <p className="small">
+        Warum nicht direkt? CreaBIM nimmt keine Datei als Startargument an und
+        kennt kein Aufruf-Protokoll – herunterladen und öffnen ist der offizielle
+        Weg zwischen Server und Desktop-App.
+      </p>
     </Dialog>
   );
 }

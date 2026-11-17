@@ -99,6 +99,7 @@ export default function ProjectView({
   onRename,
   onRequestRename,
   onRequestDelete,
+  onRequestCreabim,
   onStartJob,
   onRender,
   onRefreshStructure,
@@ -118,6 +119,24 @@ export default function ProjectView({
         </div>
 
         <div className="head-actions">
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            onClick={onRequestCreabim}
+            title="Projektdatei für die CreaBIM-Desktop-App laden"
+          >
+            <svg viewBox="0 0 20 20" aria-hidden="true" className="btn-icon">
+              <path
+                d="M4 16.5V9.5L10 4l6 5.5v7h-4.5v-4h-3v4H4Z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            In CreaBIM öffnen
+          </button>
           <a
             className="btn btn-sm"
             href={api.modelUrl(project.id)}

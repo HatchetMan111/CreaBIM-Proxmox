@@ -263,6 +263,9 @@ class CliRunner:
 # ── Aktionen ausführen ─────────────────────────────────────────────────────
 def slugify(value: str, fallback: str = "export") -> str:
     """Dateinamen aus Bezeichnungen bauen (ASCII, keine Pfad-Tricks)."""
+    for src, dst in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"),
+                     ("Ä", "Ae"), ("Ö", "Oe"), ("Ü", "Ue"), ("ß", "ss")):
+        value = value.replace(src, dst)
     keep = []
     for ch in value.strip().lower():
         if ch.isalnum():

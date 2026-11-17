@@ -242,6 +242,20 @@ tail -n 50 /opt/creabim/log/creabim-gui.log
 | noVNC bleibt schwarz | Software-Rendering ist langsam; `tail -n 50 /opt/creabim/log/creabim-gui.log` |
 | `CREABIM_SHA256` fehlt | Das Release hat keine `SHA256SUMS.txt` – der Installer warnt und überspringt die Prüfung |
 
+### Modell in die Desktop-App übernehmen („In CreaBIM öffnen")
+
+Im Projektkopf gibt es den Button **„In CreaBIM öffnen"**. CreaBIM selbst nimmt
+keine Datei als Startargument an und kennt kein Aufruf-Protokoll – der offizielle
+Weg vom Server in die Desktop-App ist daher:
+
+1. **Modelldatei herunterladen** (Button im Dialog; der Dateiname entspricht dem
+   Projektnamen, z. B. `mein-haus.creabim.json`)
+2. CreaBIM starten
+3. **Datei → Öffnen** (Strg+O) und die Datei wählen
+
+Änderungen speichert CreaBIM in die Datei – zum Zurückspielen die Datei wieder
+über „Importieren" in den Server laden.
+
 ## API
 
 Die Weboberfläche nutzt eine kleine JSON-API (FastAPI, OpenAPI unter
