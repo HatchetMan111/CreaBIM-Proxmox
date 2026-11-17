@@ -61,6 +61,15 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
 
+SAVED_PROJECT_MARKER = "saved .creabim.json project"
+
+
+def _is_saved_project_refusal(output: str) -> bool:
+    """Erkennt die Meldung, mit der die CLI gespeicherte Projekte als Build-Spec
+    ablehnt – dann ist die Datei ein Projekt und wird nativ übernommen."""
+    return SAVED_PROJECT_MARKER in (output or "")
+
+
 def _link_report_lines(stdout: str, max_notes: int = 6) -> list[str]:
     """Die stdout von `creabim link` in Report-Zeilen fassen.
 
@@ -284,6 +293,15 @@ class Library:
                 import_report = _link_report_lines(res.stdout)
             elif kind == "spec":
                 res = self.runner.run(["build", str(source), str(model)])
+                if not res.ok and _is_saved_project_refusal(res.stderr + res.stdout):
+                    # Kein Build-Spec, sondern ein in CreaBIM gespeichertes Projekt
+                    # (Datei hieß nur ".json", nicht ".creabim.json") – nativ nehmen.
+                    shutil.move(str(source), str(model))
+                    res = Result(0, "", "", [])
+                    kind = "creabim-json"
+                    import_report = [
+                        "Als gespeichertes CreaBIM-Projekt übernommen "
+                        "(Dateiname endete nur auf .json)."]
             else:
                 # .creabim / .creabim.json sind schon das native Format.
                 shutil.move(str(source), str(model))

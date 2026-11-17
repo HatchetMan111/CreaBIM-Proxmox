@@ -173,6 +173,16 @@ def main(argv: list[str]) -> int:
     if cmd == "build":
         if len(args) < 2:
             return fail("usage: build <spec.json> <out>")
+        # Wie die echte CLI: gespeicherte Projekte (mit Viewports) als Spec
+        # ablehnen – der Server muss sie dann nativ übernehmen.
+        try:
+            payload = json.loads(Path(args[0]).read_text(encoding="utf-8"))
+        except Exception:
+            payload = {}
+        if "viewports" in json.dumps(payload):
+            return fail(f"{args[0]}: $: this looks like a saved .creabim.json "
+                        "project, not a model description; open it in CreaBIM or "
+                        "convert it with `creabim save-db`")
         write_model(Path(args[1]))
         return 0
 

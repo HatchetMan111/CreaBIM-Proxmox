@@ -197,3 +197,22 @@ def test_real_fcstd_import_via_link(real_client, tmp_path):
     plan = next(v["name"] for v in detail["structure"]["views"] if v["kind"] == "plan")
     job = start_job(real_client, project["id"], "view", {"name": plan})
     assert job["status"] == "done", job.get("report")
+
+
+def test_real_saved_project_json_with_plain_name(real_client, tmp_path):
+    """Genau der Live-Fall: ein in CreaBIM gespeichertes Projekt als .json
+    hochgeladen → die CLI lehnt den Build ab → Server übernimmt nativ."""
+    import subprocess
+
+    cli = os.environ["CREABIM_TEST_CLI"]
+    model = tmp_path / "haus.json"          # bewusst NICHT .creabim.json
+    subprocess.run([cli, "sample", str(model)], check=True, capture_output=True)
+
+    response = real_client.post(
+        "/api/projects/import",
+        files={"file": ("haus.json", open(model, "rb"), "application/json")})
+    assert response.status_code == 201, response.text
+    project = response.json()["project"]
+    assert project["kind"] == "creabim-json"
+    detail = real_client.get(f"/api/projects/{project['id']}").json()
+    assert detail["structure"]["stats"]["IfcWall"] == 24

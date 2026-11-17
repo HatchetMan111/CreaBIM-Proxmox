@@ -270,3 +270,40 @@ def test_rooms_from_notes_produces_model(client):
 
 def test_unknown_job(client):
     assert client.get("/api/jobs/does-not-exist").status_code == 404
+
+# ── Gespeicherte Projekte mit reinem .json-Namen ───────────────────────────
+SAVED_PROJECT_JSON = {
+    "version": 1,
+    "levels": [{"id": "Ground Floor"}],
+    "views": [{"id": "Plan", "kind": "plan",
+               "viewports": [{"view": "Plan", "at": [10, 10]}]}],
+}
+
+
+def test_saved_project_with_plain_json_name_imports_natively(client):
+    """CreaBIM-Speicherstände enden manchmal nur auf .json (Browser-Umbenennung,
+    Doppel-Download). Der Server muss sie nativ übernehmen, nicht als Spec bauen."""
+    response = client.post(
+        "/api/projects/import",
+        files={"file": ("dratboden-konzept.creabim (1).json",
+                        io.BytesIO(json.dumps(SAVED_PROJECT_JSON).encode()),
+                        "application/json")})
+    assert response.status_code == 201, response.text
+    project = response.json()["project"]
+    assert project["kind"] == "creabim-json"
+    assert any("gespeichertes CreaBIM-Projekt" in line
+               for line in project.get("import_report", []))
+    assert client.get(f"/api/projects/{project['id']}").status_code == 200
+
+
+def test_real_spec_json_still_builds(client):
+    """Eine echte Build-Spec ohne Viewports geht weiterhin durch `build`."""
+    spec = {"version": 1, "levels": [{"id": "Ground Floor", "elevation": 0}],
+            "walls": [{"id": "W", "level": "Ground Floor",
+                       "start": [0, 0], "end": [5, 0], "thickness": 0.2}]}
+    response = client.post(
+        "/api/projects/import",
+        files={"file": ("spec.json", io.BytesIO(json.dumps(spec).encode()),
+                        "application/json")})
+    assert response.status_code == 201, response.text
+    assert response.json()["project"]["kind"] == "spec"
