@@ -7,6 +7,12 @@
 #  CreaBIM-Server: eine lokale Weboberfläche (React/Vite + FastAPI) um die
 #  headless »creabim-cli« von CreaBIM (https://github.com/chopinregis/CreaBIM).
 #
+#  WICHTIG: CreaBIM selbst ist eine NATIVE Desktop-App zum ZEICHNEN. Der
+#  Server im LXC kann nicht zeichnen – er verwaltet Modelle und rendert
+#  Pläne, Schnitte und Exporte. Die Zusammenfassung am Ende zeigt den exakten
+#  Install-Befehl für die Desktop-App; --gui liefert CreaBIM zusätzlich als
+#  noVNC-Browser-Tab (Port +1).
+#
 #  Architektur im Container:
 #    - creabim-cli aus dem offiziellen Release (SHA-256-geprüft, kein Rust-Build)
 #    - FastAPI-Backend (Python) servt /api/* + die gebaute SPA
@@ -27,7 +33,7 @@
 set -Eeuo pipefail
 
 # ── Defaults ────────────────────────────────────────────────────────────────
-INSTALLER_VERSION="1.0.0"
+INSTALLER_VERSION="1.0.1"
 APP_NAME="creabim"
 APP_PRETTY="CreaBIM Server"
 UPSTREAM_OWNER="HatchetMan111"
@@ -42,6 +48,14 @@ CREABIM_REPO="CreaBIM"
 CREABIM_VERSION="latest"
 CREABIM_TARBALL_URL=""      # wird zur Laufzeit aus dem Release ermittelt
 CREABIM_SHA256=""           # Checksummen-Zeile aus SHA256SUMS.txt
+
+# WICHTIG: CreaBIM selbst ist die NATIVE Desktop-App zum Zeichnen. Der Server
+# im LXC kann nicht zeichnen – er verwaltet Modelle und rendert Pläne/Exports.
+# Damit die Zusammenfassung das sofort sagt, steht hier der exakte Befehl für
+# die .deb-Installation auf einem Debian/Ubuntu-Desktop (SHA-256-geprüft).
+DESKTOP_DEB_ASSET="CreaBIM-1.1.1-2026-11-11-linux-x64.deb"
+DESKTOP_DEB_URL="https://github.com/${CREABIM_OWNER}/${CREABIM_REPO}/releases/download/v1.1.1/${DESKTOP_DEB_ASSET}"
+DESKTOP_SUMS_URL="https://github.com/${CREABIM_OWNER}/${CREABIM_REPO}/releases/download/v1.1.1/SHA256SUMS.txt"
 
 NODE_MAJOR=22               # nur nötig, wenn kein vorgebautes Frontend dabei liegt
 CT_ID=""                    # leer = automatisch nächste freie ID ab ID_SCAN_START
@@ -407,8 +421,11 @@ print_help() {
     cat <<'EOF'
 🏛️  CreaBIM Server – Proxmox-Installer
 
-Lokale BIM-Web-App: Projekte verwalten, Grundrisse/Schnitte/Pläne rendern und
-als PDF, IFC, XLSX, CSV, glTF oder FreeCAD exportieren – alles offline im LXC.
+Wichtig: Der Server ZEICHNET NICHT. CreaBIM selbst ist die native Desktop-App
+(Wände, 3D, Schnitte) – den exakten Install-Befehl dafür zeigt die Zusammenfassung
+am Ende, oder --gui für CreaBIM als Browser-Tab via noVNC.
+Der Server verwaltet Modelle und rendert Pläne, Schnitte, Schedules und Exporte:
+Grundrisse als SVG, PDF, Excel, CSV, IFC4, glTF, FreeCAD – alles offline im LXC.
 
 Installation:   bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/CreaBIM-Proxmox/main/install/creabim.sh)"
 
@@ -871,6 +888,24 @@ print_summary() {
     echo "  2. Projekt anlegen oder eine .ifc-Datei importieren"
     echo "  3. Grundrisse, Schnitte und Pläne rendern und als PDF/IFC exportieren"
     echo ""
+    echo -e "  ${CYAN}Zeichnen – CreaBIM selbst ist die Desktop-App:${NC}"
+    echo "  Der Server oben kann NICHT zeichnen: er verwaltet Modelle und rendert"
+    echo "  Pläne, Schnitte, Schedules und Exporte. Das eigentliche Zeichenprogramm"
+    echo "  (nativ, mit GPU) installierst du auf einem Debian/Ubuntu-Desktop – exakt kopierbar:"
+    echo ""
+    echo "    cd /tmp && wget -q ${DESKTOP_DEB_URL} \\"
+    echo "      && wget -qO SHA256SUMS.txt ${DESKTOP_SUMS_URL} \\"
+    echo "      && sha256sum -c --ignore-missing SHA256SUMS.txt \\"
+    echo "      && sudo apt install ./${DESKTOP_DEB_ASSET}"
+    echo ""
+    if $INSTALL_GUI; then
+        echo "  Alternativ im Netz: dieselbe App als Browser-Tab in diesem Container –"
+        echo "  http://${ct_ip}:${GUI_PORT}/vnc.html  (VNC-PW oben; Software-Rendering)."
+    else
+        echo "  Im Netz statt am Desktop? Neu installieren mit:  ${ONE_LINER} --gui"
+        echo "  (dann läuft CreaBIM als noVNC-Browser-Tab auf Port ${GUI_PORT})."
+    fi
+    echo ""
     echo -e "  ${CYAN}Nützliche Befehle (exakt kopierbar):${NC}"
     echo "  Status:    ${ONE_LINER} --status"
     echo "  Update:    ${ONE_LINER} --update"
@@ -879,16 +914,16 @@ print_summary() {
     echo ""
     if $INSTALL_GUI; then
         warn "Die noVNC-GUI läuft per Software-Rendering (llvmpipe) – für flüssiges"
-        warn "3D ist eine VM mit GPU-Passthrough deutlich besser geeignet."
+        warn "3D ist der Desktop-Install-Befehl oben (oder eine VM mit GPU) besser."
     fi
-    warn "CreaBIM ist ein nativer Modellierer; der Server stellt Plan-, Schnitt- und"
-    warn "Export-Funktionen bereit. Für interaktives Modellieren --gui verwenden."
 }
 
 # ── Install ────────────────────────────────────────────────────────────────
 do_install() {
     header "🏛️  Installiere ${APP_PRETTY} (LXC)"
     info "Installer-Version: v${INSTALLER_VERSION}"
+    info "Hinweis: Der Server kann nicht zeichnen – das Zeichenprogramm ist die native"
+    info "CreaBIM-Desktop-App (Install-Befehl steht am Ende) oder --gui für noVNC."
     $INSTALL_GUI && info "GUI-Modus: CreaBIM zusätzlich über noVNC (Port $GUI_PORT)"
 
     if [[ $EUID -ne 0 ]]; then

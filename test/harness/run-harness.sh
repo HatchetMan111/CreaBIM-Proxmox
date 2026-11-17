@@ -122,6 +122,10 @@ fi
 
 check "zusammengefasste URL im Log" has "$S/out.log" "http://10.120.1.77:8030"
 check "Erfolgsmeldung im Log" has "$S/out.log" "CreaBIM Server ist bereit"
+check "Rollentrennung im Log (Server zeichnet nicht)" has "$S/out.log" "kann NICHT zeichnen"
+check "Desktop-Install-Befehl im Log" has "$S/out.log" "apt install ./CreaBIM-1.1.1-2026-11-11-linux-x64.deb"
+check "SHA-256-Prüfung im Desktop-Befehl" has "$S/out.log" "sha256sum -c --ignore-missing"
+check "GUI-Hinweis im Log (ohne --gui)" has "$S/out.log" "--gui"
 check "Update-Einzeiler im Log" has "$S/out.log" "--update"
 check "Uninstall-Einzeiler im Log" has "$S/out.log" "--uninstall"
 

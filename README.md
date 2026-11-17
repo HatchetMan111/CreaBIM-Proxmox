@@ -1,5 +1,33 @@
 # 🏛️ CreaBIM Server – Proxmox-Installer
 
+> ## ⚠️ Lese das zuerst: Server ≠ Zeichenprogramm
+>
+> **CreaBIM selbst ist die Architektur-Software zum Zeichnen** – eine native
+> Desktop-App (Wände ziehen, 3D-Orbit, Türen, Schnitte). **Dieser Installer
+> installiert nicht die App selbst**, sondern eine Web-Werkbank um ihre
+> headless CLI: Modelle verwalten, Pläne/Schnitte als SVG rendern, PDF, Excel,
+> IFC, glTF exportieren, Modelle prüfen. **Interaktiv zeichnen kannst du in der
+> Weboberfläche nicht.**
+>
+> So kommt das Zeichnen auf den Bildschirm:
+>
+> | Weg | Wie | Anmerkung |
+> |---|---|---|
+> | 🖥️ **Desktop (empfohlen)** | Install-Befehl unten – erscheint im Anwendungsmenü | echte GPU, flüssiges 3D |
+> | 🌐 **Im Netz (Browser-Tab)** | Installer mit `--gui` (noVNC, Port 8031) | Software-Rendering, 3D ruckelt |
+>
+> Desktop-Installation (Debian/Ubuntu, SHA-256-geprüft, exakt kopierbar):
+>
+> ```bash
+> cd /tmp && wget -q https://github.com/chopinregis/CreaBIM/releases/download/v1.1.1/CreaBIM-1.1.1-2026-11-11-linux-x64.deb \
+>   && wget -qO SHA256SUMS.txt https://github.com/chopinregis/CreaBIM/releases/download/v1.1.1/SHA256SUMS.txt \
+>   && sha256sum -c --ignore-missing SHA256SUMS.txt \
+>   && sudo apt install ./CreaBIM-1.1.1-2026-11-11-linux-x64.deb
+> ```
+>
+> Neuere Versionen: [Releases](https://github.com/chopinregis/CreaBIM/releases/latest) – Asset-Name entsprechend anpassen.
+> Der Installer zeigt denselben Befehl am Ende jeder Installation.
+
 Lokale BIM-Web-App im LXC: Projekte verwalten, Grundrisse, Schnitte, Ansichten und
 Pläne rendern und als **PDF, IFC4, IFC5, XLSX, CSV, glTF (Blender) oder FreeCAD**
 exportieren – vollständig offline, ohne Cloud, ohne Konto.
@@ -70,7 +98,10 @@ bash -c "$(wget -qLO - …/install/creabim.sh)" -- --update
 bash -c "$(wget -qLO - …/install/creabim.sh)" -- --uninstall
 ```
 
-## Was die App kann
+## Was die App kann (und was nicht)
+
+Die Weboberfläche ist eine **Werkbank um die CLI** – sie rechnet aus einem
+existierenden Modell, sie ist kein Zeichenprogramm:
 
 | Bereich | Funktionen |
 |---|---|
@@ -79,10 +110,14 @@ bash -c "$(wget -qLO - …/install/creabim.sh)" -- --uninstall
 | **Export** | Alle Pläne als PDF, Excel-Schedules, CSV-Listen, IFC4, IFC5 (IFCX), glTF/GLB für Blender, FreeCAD |
 | **Auswertung** | Element-Statistik nach IFC-Klasse, Modellprüfung (Türen/Wandanschlüsse), Beschriftungs-Konflikte, Räume aus Notizen |
 
-Die App ist bewusst eine **Werkbank um die CLI**: interaktiv modellieren lässt
-sich mit CreaBIM selbst – dafür ist der optionale GUI-Modus da.
+Was sie **nicht** kann: modellieren. Wände zeichnen, im 3D orbiten, Elemente
+platzieren – dafür ist CreaBIM selbst da (Desktop-Install-Befehl ganz oben oder
+`--gui` für den Browser-Tab).
 
 ## GUI-Modus (optional)
+
+Am besten zeichnest du direkt am Desktop (Install-Befehl ganz oben – echte GPU).
+Der GUI-Modus ist für die Nutzung von anderen Geräten im Netz:
 
 Mit `--gui` läuft zusätzlich das echte CreaBIM-Fenster in einer virtuellen
 X11-Sitzung und wird per **noVNC** im Browser ausgeliefert
